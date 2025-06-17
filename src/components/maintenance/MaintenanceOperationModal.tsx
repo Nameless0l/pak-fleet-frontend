@@ -146,7 +146,7 @@ export default function MaintenanceOperationModal({
                                   required: 'Le véhicule est requis',
                                   valueAsNumber: true 
                                 })}
-                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-gray-500"
                               >
                                 <option value="">Sélectionner un véhicule</option>
                                 {vehicles?.data.map((vehicle) => (
@@ -169,7 +169,7 @@ export default function MaintenanceOperationModal({
                                   required: 'Le type est requis',
                                   valueAsNumber: true 
                                 })}
-                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-gray-500"
                               >
                                 <option value="">Sélectionner un type</option>
                                 {maintenanceTypes?.map((type) => (
@@ -191,7 +191,7 @@ export default function MaintenanceOperationModal({
                             <input
                               type="date"
                               {...register('operation_date', { required: 'La date est requise' })}
-                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-gray-500"
                             />
                             {errors.operation_date && (
                               <p className="mt-1 text-sm text-red-600">{errors.operation_date.message}</p>
@@ -205,7 +205,7 @@ export default function MaintenanceOperationModal({
                             <textarea
                               {...register('description')}
                               rows={3}
-                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-gray-500"
                               placeholder="Description de l'opération..."
                             />
                           </div>

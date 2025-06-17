@@ -94,7 +94,7 @@ export default function SparePartModal({ sparePart, isOpen, onClose }: SparePart
                                 type="text"
                                 {...register('code', { required: 'Le code est requis' })}
                                 disabled={!!sparePart}
-                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm disabled:bg-gray-100"
+                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-gray-500 disabled:bg-gray-100"
                               />
                               {errors.code && (
                                 <p className="mt-1 text-sm text-red-600">{errors.code.message}</p>
@@ -107,7 +107,7 @@ export default function SparePartModal({ sparePart, isOpen, onClose }: SparePart
                               </label>
                               <select
                                 {...register('category', { required: 'La catégorie est requise' })}
-                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-gray-500"
                               >
                                 <option value="filtration">Filtration</option>
                                 <option value="lubrification">Lubrification</option>
@@ -128,7 +128,7 @@ export default function SparePartModal({ sparePart, isOpen, onClose }: SparePart
                             <input
                               type="text"
                               {...register('name', { required: 'Le nom est requis' })}
-                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-gray-500"
                             />
                             {errors.name && (
                               <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>
@@ -142,7 +142,7 @@ export default function SparePartModal({ sparePart, isOpen, onClose }: SparePart
                             <textarea
                               {...register('description')}
                               rows={2}
-                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-gray-500"
                             />
                           </div>
 
@@ -154,7 +154,7 @@ export default function SparePartModal({ sparePart, isOpen, onClose }: SparePart
                               <input
                                 type="text"
                                 {...register('unit', { required: 'L\'unité est requise' })}
-                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-gray-500"
                                 placeholder="pièce, litre, kg..."
                               />
                               {errors.unit && (
@@ -174,7 +174,7 @@ export default function SparePartModal({ sparePart, isOpen, onClose }: SparePart
                                   valueAsNumber: true,
                                   min: { value: 0, message: 'Le prix doit être positif' }
                                 })}
-                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-gray-500"
                               />
                               {errors.unit_price && (
                                 <p className="mt-1 text-sm text-red-600">{errors.unit_price.message}</p>
@@ -195,7 +195,7 @@ export default function SparePartModal({ sparePart, isOpen, onClose }: SparePart
                                   min: { value: 0, message: 'Le stock doit être positif' }
                                 })}
                                 disabled={!!sparePart}
-                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm disabled:bg-gray-100"
+                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-gray-500 disabled:bg-gray-100"
                               />
                               {errors.quantity_in_stock && (
                                 <p className="mt-1 text-sm text-red-600">{errors.quantity_in_stock.message}</p>
@@ -213,7 +213,7 @@ export default function SparePartModal({ sparePart, isOpen, onClose }: SparePart
                                   valueAsNumber: true,
                                   min: { value: 0, message: 'Le stock minimum doit être positif' }
                                 })}
-                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-gray-500"
                               />
                               {errors.minimum_stock && (
                                 <p className="mt-1 text-sm text-red-600">{errors.minimum_stock.message}</p>

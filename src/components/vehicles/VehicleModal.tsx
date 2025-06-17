@@ -96,7 +96,7 @@ export default function VehicleModal({ vehicle, isOpen, onClose }: VehicleModalP
                             <input
                               type="text"
                               {...register('registration_number', { required: 'L\'immatriculation est requise' })}
-                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-gray-500"
                             />
                             {errors.registration_number && (
                               <p className="mt-1 text-sm text-red-600">{errors.registration_number.message}</p>
@@ -111,7 +111,7 @@ export default function VehicleModal({ vehicle, isOpen, onClose }: VehicleModalP
                               <input
                                 type="text"
                                 {...register('brand', { required: 'La marque est requise' })}
-                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-gray-500"
                               />
                               {errors.brand && (
                                 <p className="mt-1 text-sm text-red-600">{errors.brand.message}</p>
@@ -125,7 +125,7 @@ export default function VehicleModal({ vehicle, isOpen, onClose }: VehicleModalP
                               <input
                                 type="text"
                                 {...register('model', { required: 'Le modèle est requis' })}
-                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-gray-500"
                               />
                               {errors.model && (
                                 <p className="mt-1 text-sm text-red-600">{errors.model.message}</p>
@@ -142,7 +142,7 @@ export default function VehicleModal({ vehicle, isOpen, onClose }: VehicleModalP
                                 required: 'Le type est requis',
                                 valueAsNumber: true 
                               })}
-                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-gray-500"
                             >
                               <option value="">Sélectionner un type</option>
                               {vehicleTypes?.map((type) => (
@@ -168,7 +168,7 @@ export default function VehicleModal({ vehicle, isOpen, onClose }: VehicleModalP
                                   min: { value: 1900, message: 'Année invalide' },
                                   max: { value: new Date().getFullYear() + 1, message: 'Année invalide' }
                                 })}
-                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-gray-500"
                               />
                               {errors.year && (
                                 <p className="mt-1 text-sm text-red-600">{errors.year.message}</p>
@@ -182,7 +182,7 @@ export default function VehicleModal({ vehicle, isOpen, onClose }: VehicleModalP
                               <input
                                 type="date"
                                 {...register('acquisition_date')}
-                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-gray-500"
                               />
                             </div>
                           </div>
@@ -193,7 +193,7 @@ export default function VehicleModal({ vehicle, isOpen, onClose }: VehicleModalP
                             </label>
                             <select
                               {...register('status')}
-                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-gray-500"
                             >
                               <option value="active">Actif</option>
                               <option value="maintenance">En maintenance</option>
@@ -220,7 +220,7 @@ export default function VehicleModal({ vehicle, isOpen, onClose }: VehicleModalP
                               <input
                                 type="date"
                                 {...register('warranty_end_date')}
-                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-gray-500"
                               />
                             </div>
                           </div>

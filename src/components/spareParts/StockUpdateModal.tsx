@@ -119,7 +119,7 @@ export default function StockUpdateModal({ sparePart, isOpen, onClose }: StockUp
                             onChange={(e) => setQuantity(parseInt(e.target.value) || 0)}
                             min="1"
                             max={operation === 'remove' ? sparePart.quantity_in_stock : undefined}
-                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-gray-500"
                           />
                         </div>
 

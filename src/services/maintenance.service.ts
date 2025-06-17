@@ -4,6 +4,7 @@ import { MaintenanceOperation, MaintenanceType, PaginatedResponse } from '@/type
 export const maintenanceService = {
   async getOperations(params?: any): Promise<PaginatedResponse<MaintenanceOperation>> {
     const response = await api.get('/maintenance-operations', { params });
+    console.log('Maintenance operations response:', response.data);
     return response.data;
   },
 
@@ -19,6 +20,7 @@ export const maintenanceService = {
 
   async getPlannedOperations(): Promise<any[]> {
     const response = await api.get('/maintenance-operations/planned');
+    console.log('Maintenance operations response:', response.data);
     return response.data.data;
   },
 

@@ -1,0 +1,25 @@
+// Exemple d'utilisation dans un composant:
+/*
+const MyComponent = () => {
+  const { confirm, ConfirmDialog } = useConfirm()
+
+  const handleDelete = async () => {
+    const confirmed = await confirm({
+      title: 'Supprimer le véhicule',
+      message: 'Êtes-vous sûr de vouloir supprimer ce véhicule ?',
+      type: 'danger'
+    })
+
+    if (confirmed) {
+      // Effectuer la suppression
+    }
+  }
+
+  return (
+    <>
+      <button onClick={handleDelete}>Supprimer</button>
+      <ConfirmDialog />
+    </>
+  )
+}
+*/
