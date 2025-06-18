@@ -232,7 +232,7 @@ export default function MaintenanceOperationModal({
                                     <select
                                       value={part.spare_part_id}
                                       onChange={(e) => handlePartChange(index, 'spare_part_id', e.target.value)}
-                                      className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                                      className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 text-gray-500 focus:ring-blue-500 sm:text-sm"
                                     >
                                       <option value="0">Sélectionner une pièce</option>
                                       {spareParts?.data.map((sp) => (
@@ -246,7 +246,7 @@ export default function MaintenanceOperationModal({
                                       value={part.quantity_used}
                                       onChange={(e) => handlePartChange(index, 'quantity_used', e.target.value)}
                                       min="1"
-                                      className="w-20 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                                      className="w-20 rounded-md border-gray-300 shadow-sm focus:border-blue-500 text-gray-500 focus:ring-blue-500 sm:text-sm"
                                     />
                                     <button
                                       type="button"

@@ -1,8 +1,8 @@
 'use client'
 
-import { Fragment, useEffect } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { Dialog, Transition } from '@headlessui/react'
-import { XMarkIcon } from '@heroicons/react/24/outline'
+import { XMarkIcon, PhotoIcon } from '@heroicons/react/24/outline'
 import { useForm } from 'react-hook-form'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { vehiclesService } from '@/services/vehicles.service'
@@ -17,7 +17,11 @@ interface VehicleModalProps {
 
 export default function VehicleModal({ vehicle, isOpen, onClose }: VehicleModalProps) {
   const queryClient = useQueryClient()
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<Partial<Vehicle>>()
+  const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<Partial<Vehicle>>()
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
+
+  const underWarranty = watch('under_warranty')
 
   const { data: vehicleTypes } = useQuery({
     queryKey: ['vehicle-types'],
@@ -27,19 +31,66 @@ export default function VehicleModal({ vehicle, isOpen, onClose }: VehicleModalP
   useEffect(() => {
     if (vehicle) {
       reset(vehicle)
+      // Si le véhicule a déjà une image, afficher le preview
+      if (vehicle.image_path) {
+        setImagePreview(`${process.env.NEXT_PUBLIC_API_URL}/storage/${vehicle.image_path}`)
+      }
     } else {
       reset({
         status: 'active',
         under_warranty: false
       })
+      setImagePreview(null)
     }
+    setImageFile(null)
   }, [vehicle, reset])
 
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      // Vérifier le type de fichier
+      if (!file.type.startsWith('image/')) {
+        toast.error('Veuillez sélectionner une image valide')
+        return
+      }
+      
+      // Vérifier la taille du fichier (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('La taille de l\'image ne doit pas dépasser 5MB')
+        return
+      }
+
+      setImageFile(file)
+      
+      // Créer un preview
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
   const mutation = useMutation({
-    mutationFn: (data: Partial<Vehicle>) => 
-      vehicle 
-        ? vehiclesService.updateVehicle(vehicle.id, data)
-        : vehiclesService.createVehicle(data),
+    mutationFn: async (data: Partial<Vehicle>) => {
+      const formData = new FormData()
+      
+      // Ajouter tous les champs du véhicule
+      Object.keys(data).forEach(key => {
+        if (data[key as keyof Vehicle] !== undefined) {
+          formData.append(key, String(data[key as keyof Vehicle]))
+        }
+      })
+      
+      // Ajouter l'image si elle existe
+      if (imageFile) {
+        formData.append('image', imageFile)
+      }
+      
+      return vehicle 
+        ? vehiclesService.updateVehicle(vehicle.id, formData)
+        : vehiclesService.createVehicle(formData)
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vehicles'] })
       toast.success(vehicle ? 'Véhicule modifié avec succès' : 'Véhicule ajouté avec succès')
@@ -51,7 +102,18 @@ export default function VehicleModal({ vehicle, isOpen, onClose }: VehicleModalP
   })
 
   const onSubmit = (data: Partial<Vehicle>) => {
-    mutation.mutate(data)
+    // S'assurer que under_warranty est un booléen
+    const processedData = {
+      ...data,
+      under_warranty: Boolean(data.under_warranty)
+    }
+    
+    // Si pas sous garantie, supprimer la date de fin de garantie
+    if (!processedData.under_warranty) {
+      delete processedData.warranty_end_date
+    }
+    
+    mutation.mutate(processedData)
   }
 
   return (
@@ -88,7 +150,58 @@ export default function VehicleModal({ vehicle, isOpen, onClose }: VehicleModalP
                         <Dialog.Title as="h3" className="text-lg font-semibold leading-6 text-gray-900">
                           {vehicle ? 'Modifier le véhicule' : 'Ajouter un véhicule'}
                         </Dialog.Title>
+                        
                         <div className="mt-6 space-y-4">
+                          {/* Upload d'image */}
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Photo du véhicule
+                            </label>
+                            <div className="flex items-center space-x-4">
+                              {imagePreview ? (
+                                <div className="relative">
+                                  <img
+                                    src={imagePreview}
+                                    alt="Aperçu"
+                                    className="h-24 w-24 rounded-lg object-cover"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setImageFile(null)
+                                      setImagePreview(null)
+                                    }}
+                                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                                  >
+                                    <XMarkIcon className="h-4 w-4" />
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="h-24 w-24 rounded-lg bg-gray-100 flex items-center justify-center">
+                                  <PhotoIcon className="h-12 w-12 text-gray-400" />
+                                </div>
+                              )}
+                              <div>
+                                <label
+                                  htmlFor="vehicle-image"
+                                  className="cursor-pointer inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                                >
+                                  Choisir une image
+                                </label>
+                                <input
+                                  id="vehicle-image"
+                                  type="file"
+                                  accept="image/*"
+                                  onChange={handleImageChange}
+                                  className="sr-only"
+                                />
+                                <p className="text-xs text-gray-500 mt-1">
+                                  PNG, JPG jusqu'à 5MB
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+
                           <div>
                             <label className="block text-sm font-medium text-gray-700">
                               Immatriculation
@@ -201,40 +314,46 @@ export default function VehicleModal({ vehicle, isOpen, onClose }: VehicleModalP
                             </select>
                           </div>
 
-                          <div className="space-y-2">
-                            <div className="flex items-center">
-                              <input
-                                type="checkbox"
-                                {...register('under_warranty')}
-                                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                              />
-                              <label className="ml-2 block text-sm text-gray-900">
-                                Sous garantie
-                              </label>
-                            </div>
+                          <div className="flex items-center">
+                            <input
+                              type="checkbox"
+                              {...register('under_warranty')}
+                              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                            />
+                            <label className="ml-2 block text-sm text-gray-900">
+                              Sous garantie
+                            </label>
+                          </div>
 
+                          {underWarranty && (
                             <div>
                               <label className="block text-sm font-medium text-gray-700">
                                 Date de fin de garantie
                               </label>
                               <input
                                 type="date"
-                                {...register('warranty_end_date')}
+                                {...register('warranty_end_date', {
+                                  required: underWarranty ? 'La date de fin de garantie est requise' : false
+                                })}
                                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-gray-500"
                               />
+                              {errors.warranty_end_date && (
+                                <p className="mt-1 text-sm text-red-600">{errors.warranty_end_date.message}</p>
+                              )}
                             </div>
-                          </div>
+                          )}
                         </div>
                       </div>
                     </div>
                   </div>
+
                   <div className="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
                     <button
                       type="submit"
                       disabled={mutation.isPending}
                       className="inline-flex w-full justify-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 sm:ml-3 sm:w-auto disabled:opacity-50"
                     >
-                      {mutation.isPending ? 'Enregistrement...' : 'Enregistrer'}
+                      {mutation.isPending ? 'En cours...' : (vehicle ? 'Modifier' : 'Ajouter')}
                     </button>
                     <button
                       type="button"

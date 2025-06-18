@@ -356,25 +356,104 @@ export default function ReportsPage() {
                 <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
                   Répartition par catégorie
                 </h3>
-                <ResponsiveContainer width="100%" height={300}>
-                  <PieChart>
-                    <Pie
-                      data={annualReport?.costs_by_category}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={({ category, percent }) => `${category} ${(percent * 100).toFixed(0)}%`}
-                      outerRadius={100}
-                      fill="#8884d8"
-                      dataKey="total_cost"
-                    >
-                      {annualReport?.costs_by_category.map((entry: any, index: number) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                {annualReport?.costs_by_category && annualReport.costs_by_category.length > 0 ? (
+                  <>
+                    {console.log("Données brutes:", annualReport.costs_by_category)}
+                    {(() => {
+                      const chartData = annualReport.costs_by_category.map((item: any) => ({
+                        name: item.category === 'preventive' ? 'Préventive' : 
+                              item.category === 'corrective' ? 'Corrective' : 
+                              item.category === 'ameliorative' ? 'Améliorative' : item.category,
+                        value: parseFloat(item.total_cost) || 0, // Conversion en nombre
+                        operations_count: parseInt(item.operations_count) || 0,
+                        average_cost: parseFloat(item.average_cost) || 0,
+                        originalCategory: item.category
+                      }));
+                      
+                      console.log("Données traitées:", chartData);
+                      console.log("Total des valeurs:", chartData.reduce((sum, item) => sum + item.value, 0));
+                      
+                      return (
+                        <ResponsiveContainer width="100%" height={300}>
+                          <PieChart>
+                            <Pie
+                              data={chartData}
+                              cx="50%"
+                              cy="50%"
+                              labelLine={false}
+                              label={({ cx, cy, midAngle, innerRadius, outerRadius, value, index }) => {
+                                const RADIAN = Math.PI / 180;
+                                const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+                                const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                                const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                                const total = chartData.reduce((sum, entry) => sum + entry.value, 0);
+                                const percent = total > 0 ? ((value / total) * 100).toFixed(0) : '0';
+
+                                return (
+                                  <text 
+                                    x={x} 
+                                    y={y} 
+                                    fill="white" 
+                                    textAnchor={x > cx ? 'start' : 'end'} 
+                                    dominantBaseline="central"
+                                    fontSize="14"
+                                    fontWeight="bold"
+                                  >
+                                    {`${percent}%`}
+                                  </text>
+                                );
+                              }}
+                              outerRadius={100}
+                              fill="#8884d8"
+                              dataKey="value"
+                            >
+                              {chartData.map((entry: any, index: number) => (
+                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                              ))}
+                            </Pie>
+                            <Tooltip 
+                              formatter={(value: any) => [formatCurrency(value), 'Coût total']}
+                              content={({ active, payload }: any) => {
+                                if (active && payload && payload.length) {
+                                  const data = payload[0];
+                                  return (
+                                    <div className="bg-white p-2 border rounded shadow dark:bg-gray-800 dark:border-gray-700">
+                                      <p className="font-semibold">{data.name}</p>
+                                      <p className="text-sm">Coût total: {formatCurrency(data.value)}</p>
+                                      <p className="text-sm">Opérations: {data.payload.operations_count}</p>
+                                      <p className="text-sm">Coût moyen: {formatCurrency(data.payload.average_cost)}</p>
+                                    </div>
+                                  );
+                                }
+                                return null;
+                              }}
+                            />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      );
+                    })()}
+                    {/* Légende */}
+                    <div className="flex justify-center mt-4 space-x-4 flex-wrap">
+                      {annualReport.costs_by_category.map((item: any, index: number) => (
+                        <div key={item.category} className="flex items-center mb-2">
+                          <div
+                            className="w-3 h-3 rounded-full mr-2"
+                            style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                          />
+                          <span className="text-sm text-gray-600 dark:text-gray-400">
+                            {item.category === 'preventive' ? 'Préventive' : 
+                             item.category === 'corrective' ? 'Corrective' : 
+                             item.category === 'ameliorative' ? 'Améliorative' : item.category}
+                          </span>
+                        </div>
                       ))}
-                    </Pie>
-                    <Tooltip formatter={(value: any) => formatCurrency(value)} />
-                  </PieChart>
-                </ResponsiveContainer>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex items-center justify-center h-[300px] text-gray-500 dark:text-gray-400">
+                    Aucune donnée disponible
+                  </div>
+                )}
               </div>
             </div>
 

@@ -25,7 +25,7 @@ import {
 } from 'recharts'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 
-const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444']
+const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899']
 
 export default function DashboardPage() {
   const { data: dashboard, isLoading } = useQuery({
@@ -48,6 +48,45 @@ export default function DashboardPage() {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0
     }).format(value)
+  }
+
+  // Fonction pour préparer les données du graphique en secteurs
+  const preparePieData = (data) => {
+    if (!data || !Array.isArray(data)) return []
+    
+    return data
+      .filter(item => parseFloat(item.total_cost) > 0) // Filtrer les valeurs nulles ou zéro
+      .map(item => ({
+        ...item,
+        name: item.category || 'Catégorie inconnue', // Assurer qu'il y a un nom
+        value: parseFloat(item.total_cost)// Recharts utilise 'value' par défaut
+      }))
+  }
+
+  const pieData = preparePieData(dashboard?.costs_by_category)
+
+  // Fonction de rendu personnalisée pour les labels
+  const renderLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, name }) => {
+    if (percent < 0.05) return null // Ne pas afficher les labels pour les petites portions (<5%)
+    
+    const RADIAN = Math.PI / 180
+    const radius = innerRadius + (outerRadius - innerRadius) * 0.5
+    const x = cx + radius * Math.cos(-midAngle * RADIAN)
+    const y = cy + radius * Math.sin(-midAngle * RADIAN)
+
+    return (
+      <text 
+        x={x} 
+        y={y} 
+        fill="white" 
+        textAnchor={x > cx ? 'start' : 'end'} 
+        dominantBaseline="central"
+        fontSize="12"
+        fontWeight="bold"
+      >
+        {`${(percent * 100).toFixed(0)}%`}
+      </text>
+    )
   }
 
   return (
@@ -196,30 +235,59 @@ export default function DashboardPage() {
           </ResponsiveContainer>
         </div>
 
-        {/* Costs by category */}
+        {/* Costs by category - Version améliorée */}
         <div className="bg-white p-6 rounded-lg shadow">
           <h3 className="text-lg font-medium text-gray-900 mb-4">
             Répartition par catégorie
           </h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={dashboard?.costs_by_category}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={({ category, percent }) => `${category} ${(percent * 100).toFixed(0)}%`}
-                outerRadius={100}
-                fill="#8884d8"
-                dataKey="total_cost"
-              >
-                {dashboard?.costs_by_category.map((entry: any, index: number) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip formatter={(value: any) => formatCurrency(value)} />
-            </PieChart>
-          </ResponsiveContainer>
+          
+          {pieData.length === 0 ? (
+            <div className="flex items-center justify-center h-[300px] text-gray-500">
+              <div className="text-center">
+                <p className="text-lg">Aucune donnée disponible</p>
+                <p className="text-sm">Les coûts par catégorie n'ont pas encore été enregistrés</p>
+              </div>
+            </div>
+          ) : (
+            <div>
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={renderLabel}
+                    outerRadius={100}
+                    fill="#8884d8"
+                    dataKey="value"
+                    stroke="#fff"
+                    strokeWidth={2}
+                  >
+                    {pieData.map((entry, index) => (
+                      <Cell 
+                        key={`cell-${index}`} 
+                        fill={COLORS[index % COLORS.length]} 
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    formatter={(value: any) => formatCurrency(value)}
+                    labelFormatter={(label) => `Catégorie: ${label}`}
+                  />
+                  <Legend 
+                    verticalAlign="bottom" 
+                    height={36}
+                    formatter={(value, entry) => (
+                      <span style={{ color: entry.color }}>
+                        {value}
+                      </span>
+                    )}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </div>
       </div>
 
@@ -247,7 +315,7 @@ export default function DashboardPage() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {dashboard?.costs_by_vehicle_type.map((item: any, index: number) => (
+              {dashboard?.costs_by_vehicle_type?.map((item: any, index: number) => (
                 <tr key={index}>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                     {item.vehicle_type}
@@ -276,11 +344,11 @@ export default function DashboardPage() {
             <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
               Maintenances à venir
             </h3>
-            {dashboard?.upcoming_maintenance.length === 0 ? (
+            {dashboard?.upcoming_maintenance?.length === 0 ? (
               <p className="text-sm text-gray-500">Aucune maintenance planifiée</p>
             ) : (
               <div className="space-y-3">
-                {dashboard?.upcoming_maintenance.slice(0, 5).map((vehicle: any) => (
+                {dashboard?.upcoming_maintenance?.slice(0, 5).map((vehicle: any) => (
                   <div key={vehicle.id} className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg">
                     <div>
                       <p className="text-sm font-medium text-gray-900">
@@ -295,7 +363,7 @@ export default function DashboardPage() {
                     </span>
                   </div>
                 ))}
-                {dashboard?.upcoming_maintenance.length > 5 && (
+                {dashboard?.upcoming_maintenance?.length > 5 && (
                   <a href="/maintenance" className="text-sm text-blue-600 hover:text-blue-500">
                     Voir toutes les maintenances ({dashboard.upcoming_maintenance.length})
                   </a>
@@ -311,11 +379,11 @@ export default function DashboardPage() {
             <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
               Alertes de stock
             </h3>
-            {dashboard?.low_stock_alerts.length === 0 ? (
+            {dashboard?.low_stock_alerts?.length === 0 ? (
               <p className="text-sm text-gray-500">Tous les stocks sont suffisants</p>
             ) : (
               <div className="space-y-3">
-                {dashboard?.low_stock_alerts.slice(0, 5).map((part: any) => (
+                {dashboard?.low_stock_alerts?.slice(0, 5).map((part: any) => (
                   <div key={part.id} className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
                     <div>
                       <p className="text-sm font-medium text-gray-900">
@@ -330,7 +398,7 @@ export default function DashboardPage() {
                     </span>
                   </div>
                 ))}
-                {dashboard?.low_stock_alerts.length > 5 && (
+                {dashboard?.low_stock_alerts?.length > 5 && (
                   <a href="/spare-parts?low_stock=true" className="text-sm text-blue-600 hover:text-blue-500">
                     Voir toutes les alertes ({dashboard.low_stock_alerts.length})
                   </a>

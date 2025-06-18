@@ -141,8 +141,8 @@ export default function ValidationsPage() {
                         <div className="mt-3 p-3 bg-gray-50 rounded-md">
                           <div className="grid grid-cols-3 gap-4 text-sm">
                             <div>
-                              <span className="text-gray-500">Main d'œuvre:</span>
-                              <p className="font-medium">
+                              <span className="text-gray-700">Main d'œuvre:</span>
+                              <p className="font-medium text-gray-800">
                                 {new Intl.NumberFormat('fr-CM', { 
                                   style: 'currency', 
                                   currency: 'XAF' 
@@ -150,8 +150,8 @@ export default function ValidationsPage() {
                               </p>
                             </div>
                             <div>
-                              <span className="text-gray-500">Pièces:</span>
-                              <p className="font-medium">
+                              <span className="text-gray-700">Pièces:</span>
+                              <p className="font-medium text-gray-800">
                                 {new Intl.NumberFormat('fr-CM', { 
                                   style: 'currency', 
                                   currency: 'XAF' 
@@ -159,7 +159,7 @@ export default function ValidationsPage() {
                               </p>
                             </div>
                             <div>
-                              <span className="text-gray-500">Total:</span>
+                              <span className="text-gray-700">Total:</span>
                               <p className="font-semibold text-gray-900">
                                 {new Intl.NumberFormat('fr-CM', { 
                                   style: 'currency', 
