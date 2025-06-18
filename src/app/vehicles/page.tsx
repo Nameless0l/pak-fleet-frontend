@@ -12,7 +12,8 @@ import {
   MagnifyingGlassIcon,
   FunnelIcon,
   ChevronLeftIcon,
-  ChevronRightIcon
+  ChevronRightIcon,
+  EllipsisHorizontalIcon
 } from '@heroicons/react/24/outline'
 import VehicleModal from '@/components/vehicles/VehicleModal'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
@@ -30,6 +31,7 @@ export default function VehiclesPage() {
   const [vehicleToDelete, setVehicleToDelete] = useState<Vehicle | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
+  const [perPage, setPerPage] = useState(15)
   const [filters, setFilters] = useState({
     type_id: '',
     status: ''
@@ -37,13 +39,24 @@ export default function VehiclesPage() {
 
   const debouncedSearch = useDebounce(search, 500)
 
+  // Reset to page 1 when filters change
+  const resetFilters = (newFilters: typeof filters) => {
+    setFilters(newFilters)
+    setCurrentPage(1)
+  }
+
+  const resetSearch = (newSearch: string) => {
+    setSearch(newSearch)
+    setCurrentPage(1)
+  }
+
   const { data, isLoading } = useQuery({
-    queryKey: ['vehicles', currentPage, debouncedSearch, filters],
+    queryKey: ['vehicles', currentPage, debouncedSearch, filters, perPage],
     queryFn: () => vehiclesService.getVehicles({ 
       page: currentPage, 
       search: debouncedSearch,
       ...filters,
-      per_page: 10 
+      per_page: perPage 
     }),
     keepPreviousData: true
   })
@@ -98,7 +111,59 @@ export default function VehiclesPage() {
       </span>
     )
   }
-if (isLoading) return <DashboardLayout><LoadingSpinner /></DashboardLayout>
+
+  // Fonction pour générer les numéros de pages à afficher
+  const getPageNumbers = () => {
+    if (!data) return []
+    
+    const totalPages = data.last_page
+    const current = currentPage
+    const pages = []
+    
+    if (totalPages <= 7) {
+      // Si 7 pages ou moins, on affiche toutes les pages
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i)
+      }
+    } else {
+      // Logique pour pagination avec ellipses
+      if (current <= 4) {
+        // Début : 1, 2, 3, 4, 5, ..., last
+        for (let i = 1; i <= 5; i++) {
+          pages.push(i)
+        }
+        pages.push('ellipsis')
+        pages.push(totalPages)
+      } else if (current >= totalPages - 3) {
+        // Fin : 1, ..., last-4, last-3, last-2, last-1, last
+        pages.push(1)
+        pages.push('ellipsis')
+        for (let i = totalPages - 4; i <= totalPages; i++) {
+          pages.push(i)
+        }
+      } else {
+        // Milieu : 1, ..., current-1, current, current+1, ..., last
+        pages.push(1)
+        pages.push('ellipsis')
+        for (let i = current - 1; i <= current + 1; i++) {
+          pages.push(i)
+        }
+        pages.push('ellipsis')
+        pages.push(totalPages)
+      }
+    }
+    
+    return pages
+  }
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page)
+    // Scroll vers le haut de la table
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  if (isLoading && !data) return <DashboardLayout><LoadingSpinner /></DashboardLayout>
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -129,7 +194,7 @@ if (isLoading) return <DashboardLayout><LoadingSpinner /></DashboardLayout>
             <span className="text-sm font-medium text-gray-700">Filtres</span>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div className="md:col-span-2">
               <div className="relative rounded-md shadow-sm">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -138,7 +203,7 @@ if (isLoading) return <DashboardLayout><LoadingSpinner /></DashboardLayout>
                 <input
                   type="text"
                   value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                  onChange={(e) => resetSearch(e.target.value)}
                   className="focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-md text-gray-500"
                   placeholder="Rechercher par immatriculation, marque ou modèle..."
                 />
@@ -148,7 +213,7 @@ if (isLoading) return <DashboardLayout><LoadingSpinner /></DashboardLayout>
             <div>
               <select
                 value={filters.type_id}
-                onChange={(e) => setFilters({ ...filters, type_id: e.target.value })}
+                onChange={(e) => resetFilters({ ...filters, type_id: e.target.value })}
                 className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md text-gray-500"
               >
                 <option value="">Tous les types</option>
@@ -161,13 +226,29 @@ if (isLoading) return <DashboardLayout><LoadingSpinner /></DashboardLayout>
             <div>
               <select
                 value={filters.status}
-                onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+                onChange={(e) => resetFilters({ ...filters, status: e.target.value })}
                 className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md text-gray-500"
               >
                 <option value="">Tous les statuts</option>
                 <option value="active">Actif</option>
                 <option value="maintenance">En maintenance</option>
                 <option value="out_of_service">Hors service</option>
+              </select>
+            </div>
+
+            <div>
+              <select
+                value={perPage}
+                onChange={(e) => {
+                  setPerPage(Number(e.target.value))
+                  setCurrentPage(1)
+                }}
+                className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md text-gray-500"
+              >
+                <option value={10}>10 par page</option>
+                <option value={15}>15 par page</option>
+                <option value={25}>25 par page</option>
+                <option value={50}>50 par page</option>
               </select>
             </div>
           </div>
@@ -257,12 +338,14 @@ if (isLoading) return <DashboardLayout><LoadingSpinner /></DashboardLayout>
                               <button
                                 onClick={() => handleEdit(vehicle)}
                                 className="text-indigo-600 hover:text-indigo-900"
+                                title="Modifier"
                               >
                                 <PencilIcon className="h-5 w-5" />
                               </button>
                               <button
                                 onClick={() => setVehicleToDelete(vehicle)}
                                 className="text-red-600 hover:text-red-900"
+                                title="Supprimer"
                               >
                                 <TrashIcon className="h-5 w-5" />
                               </button>
@@ -275,69 +358,91 @@ if (isLoading) return <DashboardLayout><LoadingSpinner /></DashboardLayout>
                 </table>
               </div>
 
-              {/* Pagination */}
+              {/* Pagination améliorée */}
               {data && data.last_page > 1 && (
                 <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
                   <div className="flex-1 flex justify-between sm:hidden">
                     <button
-                      onClick={() => setCurrentPage(currentPage - 1)}
+                      onClick={() => handlePageChange(currentPage - 1)}
                       disabled={currentPage === 1}
                       className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       Précédent
                     </button>
+                    <div className="flex items-center">
+                      <span className="text-sm text-gray-700">
+                        Page {currentPage} sur {data.last_page}
+                      </span>
+                    </div>
                     <button
-                      onClick={() => setCurrentPage(currentPage + 1)}
+                      onClick={() => handlePageChange(currentPage + 1)}
                       disabled={currentPage === data.last_page}
                       className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       Suivant
                     </button>
                   </div>
+                  
                   <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
                     <div>
                       <p className="text-sm text-gray-700">
                         Affichage de{' '}
-                        <span className="font-medium">{(currentPage - 1) * data.per_page + 1}</span> à{' '}
+                        <span className="font-medium">{data.from || ((currentPage - 1) * perPage + 1)}</span> à{' '}
                         <span className="font-medium">
-                          {Math.min(currentPage * data.per_page, data.total)}
+                          {data.to || Math.min(currentPage * perPage, data.total)}
                         </span>{' '}
                         sur <span className="font-medium">{data.total}</span> résultats
                       </p>
                     </div>
+                    
                     <div>
                       <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                        {/* Bouton Précédent */}
                         <button
-                          onClick={() => setCurrentPage(currentPage - 1)}
+                          onClick={() => handlePageChange(currentPage - 1)}
                           disabled={currentPage === 1}
                           className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                          title="Page précédente"
                         >
                           <span className="sr-only">Précédent</span>
                           <ChevronLeftIcon className="h-5 w-5" aria-hidden="true" />
                         </button>
                         
-                        {/* Page numbers */}
-                        {[...Array(Math.min(5, data.last_page))].map((_, i) => {
-                          const pageNumber = i + 1
+                        {/* Numéros de pages */}
+                        {getPageNumbers().map((pageNumber, index) => {
+                          if (pageNumber === 'ellipsis') {
+                            return (
+                              <span
+                                key={`ellipsis-${index}`}
+                                className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700"
+                              >
+                                <EllipsisHorizontalIcon className="h-5 w-5" />
+                              </span>
+                            )
+                          }
+                          
                           return (
                             <button
                               key={pageNumber}
-                              onClick={() => setCurrentPage(pageNumber)}
+                              onClick={() => handlePageChange(pageNumber as number)}
                               className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
                                 currentPage === pageNumber
                                   ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
                                   : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
                               }`}
+                              title={`Page ${pageNumber}`}
                             >
                               {pageNumber}
                             </button>
                           )
                         })}
                         
+                        {/* Bouton Suivant */}
                         <button
-                          onClick={() => setCurrentPage(currentPage + 1)}
+                          onClick={() => handlePageChange(currentPage + 1)}
                           disabled={currentPage === data.last_page}
                           className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                          title="Page suivante"
                         >
                           <span className="sr-only">Suivant</span>
                           <ChevronRightIcon className="h-5 w-5" aria-hidden="true" />

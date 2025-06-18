@@ -10,7 +10,9 @@ import {
   MagnifyingGlassIcon,
   ExclamationTriangleIcon,
   ArrowUpIcon,
-  ArrowDownIcon
+  ArrowDownIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon
 } from '@heroicons/react/24/outline'
 import SparePartModal from '@/components/spareParts/SparePartModal'
 import StockUpdateModal from '@/components/spareParts/StockUpdateModal'
@@ -61,6 +63,54 @@ export default function SparePartsPage() {
       autre: 'Autre'
     }
     return labels[category] || category
+  }
+
+  // Fonction pour générer les numéros de pages
+  const getPageNumbers = () => {
+    if (!data) return []
+    
+    const totalPages = data.last_page
+    const current = currentPage
+    const pages = []
+    
+    // Toujours afficher la première page
+    pages.push(1)
+    
+    // Calcul des pages à afficher autour de la page courante
+    let start = Math.max(2, current - 2)
+    let end = Math.min(totalPages - 1, current + 2)
+    
+    // Ajuster si on est proche du début
+    if (current <= 4) {
+      end = Math.min(totalPages - 1, 5)
+    }
+    
+    // Ajuster si on est proche de la fin
+    if (current >= totalPages - 3) {
+      start = Math.max(2, totalPages - 4)
+    }
+    
+    // Ajouter des points de suspension si nécessaire
+    if (start > 2) {
+      pages.push('...')
+    }
+    
+    // Ajouter les pages du milieu
+    for (let i = start; i <= end; i++) {
+      pages.push(i)
+    }
+    
+    // Ajouter des points de suspension si nécessaire
+    if (end < totalPages - 1) {
+      pages.push('...')
+    }
+    
+    // Toujours afficher la dernière page (si différente de la première)
+    if (totalPages > 1) {
+      pages.push(totalPages)
+    }
+    
+    return pages
   }
 
   return (
@@ -230,22 +280,95 @@ export default function SparePartsPage() {
 
         {/* Pagination */}
         {data && data.last_page > 1 && (
-          <div className="flex items-center justify-between">
+          <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+            {/* Mobile pagination */}
             <div className="flex-1 flex justify-between sm:hidden">
               <button
-                onClick={() => setCurrentPage(currentPage - 1)}
+                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
                 disabled={currentPage === 1}
-                className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Précédent
               </button>
+              <span className="relative inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700">
+                Page {currentPage} sur {data.last_page}
+              </span>
               <button
-                onClick={() => setCurrentPage(currentPage + 1)}
+                onClick={() => setCurrentPage(Math.min(data.last_page, currentPage + 1))}
                 disabled={currentPage === data.last_page}
-                className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Suivant
               </button>
+            </div>
+
+            {/* Desktop pagination */}
+            <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm text-gray-700">
+                  Affichage de{' '}
+                  <span className="font-medium">{((currentPage - 1) * 15) + 1}</span>
+                  {' '}à{' '}
+                  <span className="font-medium">
+                    {Math.min(currentPage * 15, data.total)}
+                  </span>
+                  {' '}sur{' '}
+                  <span className="font-medium">{data.total}</span>
+                  {' '}résultats
+                </p>
+              </div>
+              <div>
+                <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                  {/* Bouton Précédent */}
+                  <button
+                    onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                    disabled={currentPage === 1}
+                    className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <span className="sr-only">Précédent</span>
+                    <ChevronLeftIcon className="h-5 w-5" />
+                  </button>
+
+                  {/* Numéros de pages */}
+                  {getPageNumbers().map((page, index) => {
+                    if (page === '...') {
+                      return (
+                        <span
+                          key={`ellipsis-${index}`}
+                          className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700"
+                        >
+                          ...
+                        </span>
+                      )
+                    }
+
+                    const pageNumber = page as number
+                    return (
+                      <button
+                        key={pageNumber}
+                        onClick={() => setCurrentPage(pageNumber)}
+                        className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                          currentPage === pageNumber
+                            ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
+                            : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                        }`}
+                      >
+                        {pageNumber}
+                      </button>
+                    )
+                  })}
+
+                  {/* Bouton Suivant */}
+                  <button
+                    onClick={() => setCurrentPage(Math.min(data.last_page, currentPage + 1))}
+                    disabled={currentPage === data.last_page}
+                    className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <span className="sr-only">Suivant</span>
+                    <ChevronRightIcon className="h-5 w-5" />
+                  </button>
+                </nav>
+              </div>
             </div>
           </div>
         )}
