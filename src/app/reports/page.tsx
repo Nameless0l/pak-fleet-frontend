@@ -9,7 +9,13 @@ import {
   DocumentArrowDownIcon,
   CalendarIcon,
   ChartBarIcon,
-  TableCellsIcon
+  TableCellsIcon,
+  TruckIcon,
+  WrenchScrewdriverIcon,
+  CubeIcon,
+  CurrencyDollarIcon,
+  ArrowTrendingUpIcon,
+  ArrowTrendingDownIcon
 } from '@heroicons/react/24/outline'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
@@ -17,6 +23,21 @@ import toast from 'react-hot-toast'
 import * as XLSX from 'xlsx'
 import jsPDF from 'jspdf'
 import 'jspdf-autotable'
+import {
+  BarChart,
+  Bar,
+  LineChart,
+  Line,
+  PieChart,
+  Pie,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer
+} from 'recharts'
 
 declare module 'jspdf' {
   interface jsPDF {
@@ -24,27 +45,45 @@ declare module 'jspdf' {
   }
 }
 
+const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899']
+
 export default function ReportsPage() {
   const currentYear = new Date().getFullYear()
   const [selectedYear, setSelectedYear] = useState(currentYear)
   const [exportFormat, setExportFormat] = useState<'excel' | 'pdf' | 'csv'>('excel')
+  const [reportType, setReportType] = useState<'summary' | 'detailed' | 'costs' | 'vehicles' | 'spare_parts'>('summary')
   const [isExporting, setIsExporting] = useState(false)
 
-  const { data: dashboard, isLoading } = useQuery({
-    queryKey: ['dashboard-report', selectedYear],
-    queryFn: () => dashboardService.getDashboard(selectedYear)
+  // Récupérer les données du rapport annuel
+  const { data: annualReport, isLoading } = useQuery({
+    queryKey: ['annual-report', selectedYear],
+    queryFn: () => reportsService.getAnnualSummary(selectedYear)
+  })
+
+  // Calculer les variations par rapport à l'année précédente
+  const { data: previousYearReport } = useQuery({
+    queryKey: ['annual-report', selectedYear - 1],
+    queryFn: () => reportsService.getAnnualSummary(selectedYear - 1),
+    enabled: selectedYear > 2020
   })
 
   const handleExport = async () => {
     setIsExporting(true)
     try {
-      if (exportFormat === 'pdf') {
-        generatePDF()
-      } else if (exportFormat === 'excel') {
-        generateExcel()
-      } else {
-        generateCSV()
-      }
+      const blob = await reportsService.exportReport(exportFormat, {
+        year: selectedYear,
+        type: reportType
+      })
+      
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `rapport-${reportType}-${selectedYear}.${exportFormat}`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+      
       toast.success(`Rapport exporté en ${exportFormat.toUpperCase()}`)
     } catch (error) {
       toast.error('Erreur lors de l\'export')
@@ -53,143 +92,30 @@ export default function ReportsPage() {
     }
   }
 
-  const generatePDF = () => {
-    const doc = new jsPDF()
-    
-    // Titre
-    doc.setFontSize(20)
-    doc.text('Rapport de Maintenance - Parc Automobile', 14, 22)
-    doc.setFontSize(12)
-    doc.text(`Année ${selectedYear}`, 14, 30)
-    doc.text(`Généré le ${format(new Date(), 'dd MMMM yyyy', { locale: fr })}`, 14, 36)
-
-    // Statistiques générales
-    doc.setFontSize(16)
-    doc.text('Statistiques Générales', 14, 50)
-    doc.setFontSize(10)
-    doc.text(`Nombre total de véhicules: ${dashboard?.stats.total_vehicles}`, 14, 58)
-    doc.text(`Véhicules actifs: ${dashboard?.stats.active_vehicles}`, 14, 64)
-    doc.text(`Coût total annuel: ${new Intl.NumberFormat('fr-CM', { 
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('fr-CM', { 
       style: 'currency', 
-      currency: 'XAF' 
-    }).format(dashboard?.monthly_costs.reduce((sum, m) => sum + m.total_cost, 0) || 0)}`, 14, 70)
-
-    // Tableau des coûts mensuels
-    doc.setFontSize(16)
-    doc.text('Coûts Mensuels', 14, 86)
-    
-    const monthlyData = dashboard?.monthly_costs.map(m => [
-      m.month,
-      m.operations_count.toString(),
-      new Intl.NumberFormat('fr-CM', { style: 'currency', currency: 'XAF' }).format(m.total_cost)
-    ]) || []
-
-    doc.autoTable({
-      startY: 92,
-      head: [['Mois', 'Nombre d\'opérations', 'Coût total']],
-      body: monthlyData,
-    })
-
-    // Tableau des coûts par catégorie
-    const finalY = (doc as any).lastAutoTable.finalY || 92
-    doc.setFontSize(16)
-    doc.text('Coûts par Catégorie', 14, finalY + 16)
-
-    const categoryData = dashboard?.costs_by_category.map(c => [
-      c.category === 'preventive' ? 'Préventive' : c.category === 'corrective' ? 'Corrective' : 'Améliorative',
-      c.operations_count.toString(),
-      new Intl.NumberFormat('fr-CM', { style: 'currency', currency: 'XAF' }).format(c.total_cost)
-    ]) || []
-
-    doc.autoTable({
-      startY: finalY + 22,
-      head: [['Catégorie', 'Nombre d\'opérations', 'Coût total']],
-      body: categoryData,
-    })
-
-    // Sauvegarder
-    doc.save(`rapport-maintenance-${selectedYear}.pdf`)
+      currency: 'XAF',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(value)
   }
 
-  const generateExcel = () => {
-    const wb = XLSX.utils.book_new()
-
-    // Feuille de statistiques générales
-    const statsData = [
-      ['Rapport de Maintenance - Parc Automobile'],
-      [`Année: ${selectedYear}`],
-      [`Date de génération: ${format(new Date(), 'dd MMMM yyyy', { locale: fr })}`],
-      [],
-      ['Statistiques Générales'],
-      ['Indicateur', 'Valeur'],
-      ['Nombre total de véhicules', dashboard?.stats.total_vehicles || 0],
-      ['Véhicules actifs', dashboard?.stats.active_vehicles || 0],
-      ['Coût total annuel', dashboard?.monthly_costs.reduce((sum, m) => sum + m.total_cost, 0) || 0]
-    ]
-    const statsSheet = XLSX.utils.aoa_to_sheet(statsData)
-    XLSX.utils.book_append_sheet(wb, statsSheet, 'Statistiques')
-
-    // Feuille des coûts mensuels
-    const monthlyData = [
-      ['Coûts Mensuels'],
-      ['Mois', 'Nombre d\'opérations', 'Coût total'],
-      ...(dashboard?.monthly_costs.map(m => [
-        m.month,
-        m.operations_count,
-        m.total_cost
-      ]) || [])
-    ]
-    const monthlySheet = XLSX.utils.aoa_to_sheet(monthlyData)
-    XLSX.utils.book_append_sheet(wb, monthlySheet, 'Coûts Mensuels')
-
-    // Feuille des coûts par catégorie
-    const categoryData = [
-      ['Coûts par Catégorie'],
-      ['Catégorie', 'Nombre d\'opérations', 'Coût total'],
-      ...(dashboard?.costs_by_category.map(c => [
-        c.category === 'preventive' ? 'Préventive' : c.category === 'corrective' ? 'Corrective' : 'Améliorative',
-        c.operations_count,
-        c.total_cost
-      ]) || [])
-    ]
-    const categorySheet = XLSX.utils.aoa_to_sheet(categoryData)
-    XLSX.utils.book_append_sheet(wb, categorySheet, 'Coûts par Catégorie')
-
-    // Feuille des coûts par type de véhicule
-    const vehicleTypeData = [
-      ['Coûts par Type de Véhicule'],
-      ['Type', 'Nombre d\'opérations', 'Coût total'],
-      ...(dashboard?.costs_by_vehicle_type.map(v => [
-        v.vehicle_type,
-        v.operations_count,
-        v.total_cost
-      ]) || [])
-    ]
-    const vehicleTypeSheet = XLSX.utils.aoa_to_sheet(vehicleTypeData)
-    XLSX.utils.book_append_sheet(wb, vehicleTypeSheet, 'Coûts par Type')
-
-    // Sauvegarder
-    XLSX.writeFile(wb, `rapport-maintenance-${selectedYear}.xlsx`)
+  const calculateVariation = (current: number, previous: number) => {
+    if (!previous || previous === 0) return 0
+    return ((current - previous) / previous) * 100
   }
 
-  const generateCSV = () => {
-    const headers = ['Mois', 'Nombre d\'opérations', 'Coût total']
-    const rows = dashboard?.monthly_costs.map(m => [
-      m.month,
-      m.operations_count,
-      m.total_cost
-    ]) || []
+  const getVariationColor = (variation: number) => {
+    return variation >= 0 ? 'text-red-600' : 'text-green-600'
+  }
 
-    let csvContent = headers.join(',') + '\n'
-    rows.forEach(row => {
-      csvContent += row.join(',') + '\n'
-    })
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-    const link = document.createElement('a')
-    link.href = URL.createObjectURL(blob)
-    link.download = `rapport-maintenance-${selectedYear}.csv`
-    link.click()
+  const getVariationIcon = (variation: number) => {
+    return variation >= 0 ? (
+      <ArrowTrendingUpIcon className="h-4 w-4 text-red-600" />
+    ) : (
+      <ArrowTrendingDownIcon className="h-4 w-4 text-green-600" />
+    )
   }
 
   return (
@@ -197,26 +123,26 @@ export default function ReportsPage() {
       <div className="space-y-6">
         <div className="sm:flex sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-2xl font-semibold text-gray-900">Rapports</h1>
-            <p className="mt-1 text-sm text-gray-500">
-              Génération et export de rapports
+            <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Rapports</h1>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              Génération et analyse des rapports de maintenance
             </p>
           </div>
         </div>
 
-        {/* Sélection de l'année */}
-        <div className="bg-white shadow rounded-lg p-6">
-          <h2 className="text-lg font-medium text-gray-900 mb-4">Paramètres du rapport</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Paramètres du rapport */}
+        <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
+          <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Paramètres du rapport</h2>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
-              <label htmlFor="year" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="year" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 Année
               </label>
               <select
                 id="year"
                 value={selectedYear}
                 onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md text-gray-500"
+                className="mt-1 block w-full rounded-md border-gray-300 bg-white text-gray-900 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white sm:text-sm"
               >
                 {[...Array(5)].map((_, i) => {
                   const year = currentYear - i
@@ -228,14 +154,32 @@ export default function ReportsPage() {
             </div>
 
             <div>
-              <label htmlFor="format" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="reportType" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Type de rapport
+              </label>
+              <select
+                id="reportType"
+                value={reportType}
+                onChange={(e) => setReportType(e.target.value as any)}
+                className="mt-1 block w-full rounded-md border-gray-300 bg-white text-gray-900 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white sm:text-sm"
+              >
+                <option value="summary">Résumé</option>
+                <option value="detailed">Détaillé</option>
+                <option value="costs">Analyse des coûts</option>
+                <option value="vehicles">Par véhicule</option>
+                <option value="spare_parts">Pièces détachées</option>
+              </select>
+            </div>
+
+            <div>
+              <label htmlFor="format" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 Format d'export
               </label>
               <select
                 id="format"
                 value={exportFormat}
                 onChange={(e) => setExportFormat(e.target.value as any)}
-                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md text-gray-500"
+                className="mt-1 block w-full rounded-md border-gray-300 bg-white text-gray-900 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white sm:text-sm"
               >
                 <option value="excel">Excel (.xlsx)</option>
                 <option value="pdf">PDF</option>
@@ -263,84 +207,246 @@ export default function ReportsPage() {
           </div>
         ) : (
           <div className="space-y-6">
-            {/* Résumé */}
-            <div className="bg-white shadow rounded-lg p-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Résumé annuel {selectedYear}</h3>
-              <dl className="grid grid-cols-1 gap-5 sm:grid-cols-3">
-                <div className="px-4 py-5 bg-gray-50 shadow rounded-lg overflow-hidden sm:p-6">
-                  <dt className="text-sm font-medium text-gray-500 truncate">Coût total</dt>
-                  <dd className="mt-1 text-3xl font-semibold text-gray-900">
-                    {new Intl.NumberFormat('fr-CM', { 
-                      style: 'currency', 
-                      currency: 'XAF',
-                      maximumFractionDigits: 0
-                    }).format(dashboard?.monthly_costs.reduce((sum, m) => sum + m.total_cost, 0) || 0)}
-                  </dd>
+            {/* KPIs avec variations */}
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
+                <div className="p-5">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0">
+                      <CurrencyDollarIcon className="h-6 w-6 text-gray-400" />
+                    </div>
+                    <div className="ml-5 w-0 flex-1">
+                      <dl>
+                        <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">
+                          Coût total annuel
+                        </dt>
+                        <dd className="flex items-baseline">
+                          <div className="text-2xl font-semibold text-gray-900 dark:text-white">
+                            {formatCurrency(annualReport?.stats.total_cost || 0)}
+                          </div>
+                          {previousYearReport && (
+                            <div className="ml-2 flex items-baseline text-sm">
+                              {getVariationIcon(calculateVariation(
+                                annualReport?.stats.total_cost || 0,
+                                previousYearReport.stats.total_cost
+                              ))}
+                              <span className={`ml-1 ${getVariationColor(calculateVariation(
+                                annualReport?.stats.total_cost || 0,
+                                previousYearReport.stats.total_cost
+                              ))}`}>
+                                {Math.abs(calculateVariation(
+                                  annualReport?.stats.total_cost || 0,
+                                  previousYearReport.stats.total_cost
+                                )).toFixed(1)}%
+                              </span>
+                            </div>
+                          )}
+                        </dd>
+                      </dl>
+                    </div>
+                  </div>
                 </div>
-                <div className="px-4 py-5 bg-gray-50 shadow rounded-lg overflow-hidden sm:p-6">
-                  <dt className="text-sm font-medium text-gray-500 truncate">Opérations totales</dt>
-                  <dd className="mt-1 text-3xl font-semibold text-gray-900">
-                    {dashboard?.monthly_costs.reduce((sum, m) => sum + m.operations_count, 0) || 0}
-                  </dd>
+              </div>
+
+              <div className="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
+                <div className="p-5">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0">
+                      <WrenchScrewdriverIcon className="h-6 w-6 text-gray-400" />
+                    </div>
+                    <div className="ml-5 w-0 flex-1">
+                      <dl>
+                        <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">
+                          Opérations totales
+                        </dt>
+                        <dd className="text-2xl font-semibold text-gray-900 dark:text-white">
+                          {annualReport?.stats.total_operations || 0}
+                        </dd>
+                      </dl>
+                    </div>
+                  </div>
                 </div>
-                <div className="px-4 py-5 bg-gray-50 shadow rounded-lg overflow-hidden sm:p-6">
-                  <dt className="text-sm font-medium text-gray-500 truncate">Coût moyen par opération</dt>
-                  <dd className="mt-1 text-3xl font-semibold text-gray-900">
-                    {new Intl.NumberFormat('fr-CM', { 
-                      style: 'currency', 
-                      currency: 'XAF',
-                      maximumFractionDigits: 0
-                    }).format(
-                      (dashboard?.monthly_costs.reduce((sum, m) => sum + m.total_cost, 0) || 0) /
-                      (dashboard?.monthly_costs.reduce((sum, m) => sum + m.operations_count, 0) || 1)
-                    )}
-                  </dd>
+              </div>
+
+              <div className="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
+                <div className="p-5">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0">
+                      <ChartBarIcon className="h-6 w-6 text-gray-400" />
+                    </div>
+                    <div className="ml-5 w-0 flex-1">
+                      <dl>
+                        <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">
+                          Coût moyen/opération
+                        </dt>
+                        <dd className="text-2xl font-semibold text-gray-900 dark:text-white">
+                          {formatCurrency(annualReport?.stats.average_cost_per_operation || 0)}
+                        </dd>
+                      </dl>
+                    </div>
+                  </div>
                 </div>
-              </dl>
+              </div>
+
+              <div className="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
+                <div className="p-5">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0">
+                      <TruckIcon className="h-6 w-6 text-gray-400" />
+                    </div>
+                    <div className="ml-5 w-0 flex-1">
+                      <dl>
+                        <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">
+                          Véhicules actifs
+                        </dt>
+                        <dd className="text-2xl font-semibold text-gray-900 dark:text-white">
+                          {annualReport?.stats.active_vehicles || 0}
+                        </dd>
+                      </dl>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            {/* Tableau des coûts mensuels */}
-            <div className="bg-white shadow rounded-lg overflow-hidden">
+            {/* Graphiques */}
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+              {/* Évolution mensuelle */}
+              <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+                  Évolution mensuelle des coûts
+                </h3>
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={annualReport?.monthly_costs}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="month" />
+                    <YAxis tickFormatter={(value) => `${value / 1000000}M`} />
+                    <Tooltip 
+                      formatter={(value: any) => formatCurrency(value)}
+                      labelStyle={{ color: '#000' }}
+                    />
+                    <Legend />
+                    <Line 
+                      type="monotone" 
+                      dataKey="total_cost" 
+                      stroke="#3B82F6" 
+                      name="Coût total"
+                      strokeWidth={2}
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="labor_cost" 
+                      stroke="#10B981" 
+                      name="Main d'œuvre"
+                      strokeWidth={2}
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="parts_cost" 
+                      stroke="#F59E0B" 
+                      name="Pièces"
+                      strokeWidth={2}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Répartition par catégorie */}
+              <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+                  Répartition par catégorie
+                </h3>
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={annualReport?.costs_by_category}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ category, percent }) => `${category} ${(percent * 100).toFixed(0)}%`}
+                      outerRadius={100}
+                      fill="#8884d8"
+                      dataKey="total_cost"
+                    >
+                      {annualReport?.costs_by_category.map((entry: any, index: number) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value: any) => formatCurrency(value)} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Top 10 véhicules par coût */}
+            <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
               <div className="px-4 py-5 sm:px-6">
-                <h3 className="text-lg leading-6 font-medium text-gray-900">
-                  Détail mensuel
+                <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white">
+                  Top 10 véhicules par coût de maintenance
                 </h3>
               </div>
-              <div className="border-t border-gray-200">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
+              <div className="border-t border-gray-200 dark:border-gray-700">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                  <thead className="bg-gray-50 dark:bg-gray-700">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Mois
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        Véhicule
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         Opérations
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         Coût total
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        Coût moyen
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {dashboard?.monthly_costs.map((month) => (
-                      <tr key={month.month}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          {month.month}
+                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    {annualReport?.top_vehicles_by_cost?.map((vehicle: any) => (
+                      <tr key={vehicle.id}>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-medium text-gray-900 dark:text-white">
+                            {vehicle.registration_number}
+                          </div>
+                          <div className="text-sm text-gray-500 dark:text-gray-400">
+                            {vehicle.brand} {vehicle.model}
+                          </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {month.operations_count}
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                          {vehicle.operations_count}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {new Intl.NumberFormat('fr-CM', { 
-                            style: 'currency', 
-                            currency: 'XAF' 
-                          }).format(month.total_cost)}
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                          {formatCurrency(vehicle.total_cost)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                          {formatCurrency(vehicle.total_cost / vehicle.operations_count)}
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
+            </div>
+
+            {/* Consommation de pièces détachées */}
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+                Top 10 pièces détachées consommées
+              </h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart 
+                  data={annualReport?.spare_parts_consumption?.slice(0, 10)}
+                  layout="vertical"
+                >
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis type="number" tickFormatter={(value) => formatCurrency(value)} />
+                  <YAxis dataKey="name" type="category" width={150} />
+                  <Tooltip formatter={(value: any) => formatCurrency(value)} />
+                  <Bar dataKey="total_value" fill="#3B82F6" />
+                </BarChart>
+              </ResponsiveContainer>
             </div>
           </div>
         )}
