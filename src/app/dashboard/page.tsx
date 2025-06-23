@@ -2,6 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { dashboardService } from '@/services/dashboard.service'
+import ForecastCompactWidget from '@/components/dashboard/ForecastCompactWidget';
 import { 
   TruckIcon, 
   WrenchScrewdriverIcon, 
@@ -20,8 +21,6 @@ import {
   Pie,
   Cell,
   ResponsiveContainer,
-  LineChart,
-  Line
 } from 'recharts'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 
@@ -213,7 +212,12 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
-
+    <div className="">
+        {/* Graphique de tendance */}
+        <div className="lg:col-span-2">
+          <ForecastCompactWidget />
+        </div>
+      </div>
       {/* Charts */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Monthly costs chart */}

@@ -166,11 +166,30 @@ export default function ReportsPage() {
       const partsSheet = XLSX.utils.aoa_to_sheet(partsData)
       XLSX.utils.book_append_sheet(workbook, partsSheet, 'Pièces Détachées')
     }
-
+    if (annualReport.forecast_next_year) {
+  const forecastData = [
+    [`PRÉVISION BUDGÉTAIRE ${annualReport.forecast_next_year.year}`],
+    [''],
+    ['Méthode de calcul', annualReport.forecast_next_year.calculation_method],
+    [''],
+    ['DÉTAILS DU CALCUL'],
+    ['Véhicule de référence', annualReport.forecast_next_year.reference_vehicle?.registration_number || 'N/A'],
+    ['Marque/Modèle', `${annualReport.forecast_next_year.reference_vehicle?.brand || ''} ${annualReport.forecast_next_year.reference_vehicle?.model || ''}`],
+    ['Coût annuel du véhicule le plus élevé', formatCurrency(annualReport.forecast_next_year.highest_vehicle_cost)],
+    ['Nombre de véhicules dans le parc', annualReport.forecast_next_year.vehicles_count],
+    [''],
+    ['BUDGET PRÉVISIONNEL', formatCurrency(annualReport.forecast_next_year.forecast_amount)],
+    [''],
+    ['Note: Cette prévision est basée sur le coût du véhicule ayant généré les dépenses les plus élevées multiplié par le nombre total de véhicules.']
+  ]
+  
+  const forecastSheet = XLSX.utils.aoa_to_sheet(forecastData)
+  XLSX.utils.book_append_sheet(workbook, forecastSheet, 'Prévision')
+}
     // Sauvegarder le fichier
     XLSX.writeFile(workbook, `rapport-${reportType}-${selectedYear}.xlsx`)
   }
-
+  
   // Export PDF amélioré et plus convivial
   const exportToPDF = async () => {
     if (!annualReport) return
@@ -361,6 +380,38 @@ export default function ReportsPage() {
         yPosition += 8
       })
     }
+    if (annualReport.forecast_next_year) {
+  // Nouvelle page pour la prévision
+  doc.addPage()
+  yPosition = 25
+  
+  // Titre de la section
+  doc.setFillColor(...primaryColor)
+  doc.rect(0, 0, 210, 40, 'F')
+  
+  doc.setTextColor(255, 255, 255)
+  doc.setFontSize(20)
+  doc.setFont('helvetica', 'bold')
+  doc.text(`PRÉVISION BUDGÉTAIRE ${annualReport.forecast_next_year.year}`, 20, 25)
+  
+  yPosition = 60
+  
+  // Montant prévisionnel
+  doc.setFillColor(...lightGray)
+  doc.rect(15, yPosition - 10, 180, 40, 'F')
+  
+  doc.setTextColor(...primaryColor)
+  doc.setFontSize(14)
+  doc.text('Budget prévisionnel:', 20, yPosition)
+  
+  doc.setTextColor(0, 0, 0)
+  doc.setFontSize(24)
+  doc.setFont('helvetica', 'bold')
+  doc.text(formatCurrencyForPDF(annualReport.forecast_next_year.forecast_amount), 20, yPosition + 15)
+  
+  yPosition += 50
+  doc.setFontSize(10)
+}
 
     // Pied de page stylé
     const pageCount = doc.getNumberOfPages()
@@ -675,7 +726,106 @@ export default function ReportsPage() {
                 </div>
               </div>
             </div>
-
+            {annualReport?.forecast_next_year && (
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-700 rounded-lg shadow-lg p-6 border border-blue-200 dark:border-gray-600">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center">
+                    <ChartBarIcon className="h-6 w-6 mr-2 text-blue-600" />
+                    Prévision budgétaire {annualReport.forecast_next_year.year}
+                  </h3>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">
+                    Basée sur les données de {selectedYear}
+                  </span>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="bg-white dark:bg-gray-800 rounded-lg p-4">
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Budget prévisionnel</p>
+                    <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                      {formatCurrency(annualReport.forecast_next_year.forecast_amount)}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
+                      Pour l'année {annualReport.forecast_next_year.year}
+                    </p>
+                  </div>
+                  
+                  <div className="bg-white dark:bg-gray-800 rounded-lg p-4">
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Méthode de calcul</p>
+                    <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                      {formatCurrency(annualReport.forecast_next_year.highest_vehicle_cost)}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-500">
+                      × {annualReport.forecast_next_year.vehicles_count} véhicules
+                    </p>
+                  </div>
+                  
+                  {annualReport.forecast_next_year.reference_vehicle && (
+                    <div className="bg-white dark:bg-gray-800 rounded-lg p-4">
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Véhicule de référence</p>
+                      <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                        {annualReport.forecast_next_year.reference_vehicle.registration_number}
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-500">
+                        {annualReport.forecast_next_year.reference_vehicle.brand} {annualReport.forecast_next_year.reference_vehicle.model}
+                      </p>
+                    </div>
+                  )}
+                </div>
+                
+              </div>
+            )}
+            {annualReport?.forecast_next_year && previousYearReport?.forecast_next_year && (
+  <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+    <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+      Prévision vs Réalisation
+    </h3>
+    <ResponsiveContainer width="100%" height={300}>
+      <BarChart
+        data={[
+          {
+            name: `Prévision ${selectedYear}`,
+            value: previousYearReport.forecast_next_year?.forecast_amount || 0,
+            type: 'forecast'
+          },
+          {
+            name: `Réel ${selectedYear}`,
+            value: annualReport.stats.total_cost || 0,
+            type: 'actual'
+          },
+          {
+            name: `Prévision ${selectedYear + 1}`,
+            value: annualReport.forecast_next_year.forecast_amount,
+            type: 'forecast'
+          }
+        ]}
+      >
+        <CartesianGrid strokeDasharray="3 3" />
+        <XAxis dataKey="name" />
+        <YAxis tickFormatter={formatYAxisValue} />
+        <Tooltip formatter={(value) => formatCurrency(value)} />
+        <Bar dataKey="value">
+          {data => data.map((entry, index) => (
+            <Cell key={`cell-${index}`} fill={entry.type === 'forecast' ? '#3B82F6' : '#10B981'} />
+          ))}
+        </Bar>
+      </BarChart>
+    </ResponsiveContainer>
+    {previousYearReport?.forecast_next_year && (
+      <div className="mt-4 text-sm text-gray-600 dark:text-gray-400">
+        <p>
+          Écart prévision/réel {selectedYear}: {' '}
+          <span className={`font-semibold ${
+            annualReport.stats.total_cost > previousYearReport.forecast_next_year.forecast_amount
+              ? 'text-red-600' : 'text-green-600'
+          }`}>
+            {formatCurrency(Math.abs(annualReport.stats.total_cost - previousYearReport.forecast_next_year.forecast_amount))}
+            {' '}({((annualReport.stats.total_cost - previousYearReport.forecast_next_year.forecast_amount) / previousYearReport.forecast_next_year.forecast_amount * 100).toFixed(1)}%)
+          </span>
+        </p>
+      </div>
+    )}
+  </div>
+)}
             {/* Graphiques */}
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
               {/* Évolution mensuelle */}
