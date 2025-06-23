@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useAuth } from '@/contexts/AuthContext'
 import toast from 'react-hot-toast'
-import { TruckIcon } from '@heroicons/react/24/outline'
+// import { TruckIcon } from '@heroicons/react/24/outline' // N'est plus nécessaire
 
 interface LoginForm {
   email: string
@@ -33,10 +33,14 @@ export default function LoginPage() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center px-4">
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
-          <div className="flex justify-center">
-            <div className="bg-blue-600 p-4 rounded-full">
-              <TruckIcon className="h-12 w-12 text-white" />
-            </div>
+          {/* NOUVEAU: Remplacement par le logo */}
+          <div className="flex justify-center items-center">
+             <img 
+                  src="/images/logo.jpg" 
+                  alt="PAK Logo"
+                  width={40}
+                  height={40}
+                />
           </div>
           <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
             PAK Fleet Management
