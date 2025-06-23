@@ -3,18 +3,24 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { maintenanceService } from '@/services/maintenance.service'
+import { vehiclesService } from '@/services/vehicles.service' // NOUVEAU: Importer le service des véhicules
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import { useAuth } from '@/contexts/AuthContext'
 import { FunnelIcon } from '@heroicons/react/24/outline'
 
-export default function MaintenanceHistoryList() {
-  const { user } = useAuth()
+// NOUVEAU: Définition des props
+interface MaintenanceHistoryListProps {
+  vehicleIdFromUrl: string | null;
+}
+
+// MODIFIÉ: Le composant accepte les props
+export default function MaintenanceHistoryList({ vehicleIdFromUrl }: MaintenanceHistoryListProps) {
   const [filters, setFilters] = useState({
     status: '',
-    vehicle_id: '',
+    // MODIFIÉ: Initialise le filtre avec l'ID de l'URL
+    vehicle_id: vehicleIdFromUrl || '',
     date_from: '',
     date_to: ''
   })
@@ -25,8 +31,16 @@ export default function MaintenanceHistoryList() {
     queryFn: () => maintenanceService.getOperations({
       page: currentPage,
       ...filters
-    })
+    }),
+    keepPreviousData: true
   })
+
+  // NOUVEAU: Query pour récupérer la liste des véhicules pour le filtre
+  const { data: vehiclesData } = useQuery({
+    queryKey: ['vehicles-list-for-filter'],
+    queryFn: () => vehiclesService.getVehicles({ per_page: 1000 }) // Récupère jusqu'à 1000 véhicules
+  })
+
 
   const getStatusBadge = (status: string) => {
     const statusStyles = {
@@ -77,11 +91,33 @@ export default function MaintenanceHistoryList() {
           </h3>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {/* NOUVEAU: Filtre par véhicule */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Véhicule</label>
+            <select
+              value={filters.vehicle_id}
+              onChange={(e) => {
+                setCurrentPage(1);
+                setFilters({ ...filters, vehicle_id: e.target.value });
+              }}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-gray-500"
+            >
+              <option value="">Tous les véhicules</option>
+              {vehiclesData?.data.map((vehicle: any) => (
+                <option key={vehicle.id} value={vehicle.id}>
+                  {vehicle.registration_number} - {vehicle.brand}
+                </option>
+              ))}
+            </select>
+          </div>
           <div>
             <label className="block text-sm font-medium text-gray-700">Statut</label>
             <select
               value={filters.status}
-              onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+              onChange={(e) => {
+                setCurrentPage(1);
+                setFilters({ ...filters, status: e.target.value });
+              }}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-gray-500"
             >
               <option value="">Tous</option>
@@ -95,7 +131,10 @@ export default function MaintenanceHistoryList() {
             <input
               type="date"
               value={filters.date_from}
-              onChange={(e) => setFilters({ ...filters, date_from: e.target.value })}
+              onChange={(e) => {
+                setCurrentPage(1);
+                setFilters({ ...filters, date_from: e.target.value });
+              }}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-gray-500"
             />
           </div>
@@ -104,8 +143,11 @@ export default function MaintenanceHistoryList() {
             <input
               type="date"
               value={filters.date_to}
-              onChange={(e) => setFilters({ ...filters, date_to: e.target.value })}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-gray-500 text-gray-500"
+              onChange={(e) => {
+                setCurrentPage(1);
+                setFilters({ ...filters, date_to: e.target.value });
+              }}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-gray-500"
             />
           </div>
         </div>
@@ -114,7 +156,7 @@ export default function MaintenanceHistoryList() {
       {/* List */}
       <div className="bg-white shadow overflow-hidden sm:rounded-md">
         {data?.data.length === 0 ? (
-          <EmptyState title="Aucune opération trouvée" />
+          <EmptyState title="Aucune opération trouvée" description="Essayez de modifier vos filtres."/>
         ) : (
           <ul className="divide-y divide-gray-200">
             {data?.data.map((operation) => (
@@ -148,7 +190,8 @@ export default function MaintenanceHistoryList() {
                           <p className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0">
                             Coût total: {new Intl.NumberFormat('fr-CM', { 
                               style: 'currency', 
-                              currency: 'XAF' 
+                              currency: 'XAF',
+                              minimumFractionDigits: 0
                             }).format(operation.total_cost)}
                           </p>
                         </div>
@@ -179,22 +222,23 @@ export default function MaintenanceHistoryList() {
       {/* Pagination */}
       {data && data.last_page > 1 && (
         <div className="flex items-center justify-between">
-          <div className="flex-1 flex justify-between sm:hidden">
-            <button
-              onClick={() => setCurrentPage(currentPage - 1)}
-              disabled={currentPage === 1}
-              className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-            >
-              Précédent
-            </button>
-            <button
-              onClick={() => setCurrentPage(currentPage + 1)}
-              disabled={currentPage === data.last_page}
-              className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-            >
-              Suivant
-            </button>
-          </div>
+          <button
+            onClick={() => setCurrentPage(currentPage - 1)}
+            disabled={currentPage === 1}
+            className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+          >
+            Précédent
+          </button>
+          <span className="text-sm text-gray-500">
+            Page {currentPage} sur {data.last_page}
+          </span>
+          <button
+            onClick={() => setCurrentPage(currentPage + 1)}
+            disabled={currentPage === data.last_page}
+            className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+          >
+            Suivant
+          </button>
         </div>
       )}
     </div>

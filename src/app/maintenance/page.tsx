@@ -1,18 +1,21 @@
 'use client'
 
-import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { maintenanceService } from '@/services/maintenance.service'
+import React, { useState, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import DashboardLayout from '@/components/layout/DashboardLayout'
-import { useAuth } from '@/contexts/AuthContext'
 import { PlusIcon, CalendarIcon, ClockIcon } from '@heroicons/react/24/outline'
 import MaintenanceOperationModal from '@/components/maintenance/MaintenanceOperationModal'
 import PlannedMaintenanceList from '@/components/maintenance/PlannedMaintenanceList'
 import MaintenanceHistoryList from '@/components/maintenance/MaintenanceHistoryList'
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 
-export default function MaintenancePage() {
-  const { user } = useAuth()
-  const [activeTab, setActiveTab] = useState<'planned' | 'history'>('planned')
+function MaintenancePageContent() {
+  const searchParams = useSearchParams()
+
+  const initialTab = searchParams.get('tab') === 'history' ? 'history' : 'planned'
+  const vehicleIdFromUrl = searchParams.get('vehicleId')
+
+  const [activeTab, setActiveTab] = useState<'planned' | 'history'>(initialTab)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedVehicleId, setSelectedVehicleId] = useState<number | null>(null)
 
@@ -74,7 +77,8 @@ export default function MaintenancePage() {
         {activeTab === 'planned' ? (
           <PlannedMaintenanceList onNewOperation={handleNewOperation} />
         ) : (
-          <MaintenanceHistoryList />
+          // MODIFIÉ: Passer l'ID du véhicule au composant d'historique
+          <MaintenanceHistoryList vehicleIdFromUrl={vehicleIdFromUrl} />
         )}
       </div>
 
@@ -87,5 +91,20 @@ export default function MaintenancePage() {
         />
       )}
     </DashboardLayout>
+  )
+}
+
+// NOUVEAU: Composant principal qui utilise Suspense
+export default function MaintenancePage() {
+  return (
+    <Suspense fallback={
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <LoadingSpinner />
+        </div>
+      </DashboardLayout>
+    }>
+      <MaintenancePageContent />
+    </Suspense>
   )
 }

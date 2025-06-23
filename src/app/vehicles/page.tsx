@@ -22,10 +22,12 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import toast from 'react-hot-toast'
 import { Vehicle } from '@/types'
 import { useDebounce } from '@/hooks/useDebounce'
+import { useRouter } from 'next/navigation' // NOUVEAU: Importer useRouter
 
 export default function VehiclesPage() {
   const { isChief } = useAuth()
   const queryClient = useQueryClient()
+  const router = useRouter() // NOUVEAU: Initialiser le router
   const [search, setSearch] = useState('')
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null)
   const [vehicleToDelete, setVehicleToDelete] = useState<Vehicle | null>(null)
@@ -94,6 +96,11 @@ export default function VehiclesPage() {
     }
   }
 
+  // NOUVEAU: Fonction pour gérer le clic sur une ligne
+  const handleRowClick = (vehicleId: number) => {
+    router.push(`/maintenance?tab=history&vehicleId=${vehicleId}`)
+  }
+
   const getStatusBadge = (status: string) => {
     const statusStyles = {
       active: 'bg-green-100 text-green-800',
@@ -121,28 +128,23 @@ export default function VehiclesPage() {
     const pages = []
     
     if (totalPages <= 7) {
-      // Si 7 pages ou moins, on affiche toutes les pages
       for (let i = 1; i <= totalPages; i++) {
         pages.push(i)
       }
     } else {
-      // Logique pour pagination avec ellipses
       if (current <= 4) {
-        // Début : 1, 2, 3, 4, 5, ..., last
         for (let i = 1; i <= 5; i++) {
           pages.push(i)
         }
         pages.push('ellipsis')
         pages.push(totalPages)
       } else if (current >= totalPages - 3) {
-        // Fin : 1, ..., last-4, last-3, last-2, last-1, last
         pages.push(1)
         pages.push('ellipsis')
         for (let i = totalPages - 4; i <= totalPages; i++) {
           pages.push(i)
         }
       } else {
-        // Milieu : 1, ..., current-1, current, current+1, ..., last
         pages.push(1)
         pages.push('ellipsis')
         for (let i = current - 1; i <= current + 1; i++) {
@@ -158,7 +160,6 @@ export default function VehiclesPage() {
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page)
-    // Scroll vers le haut de la table
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
@@ -296,7 +297,12 @@ export default function VehiclesPage() {
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {data?.data.map((vehicle) => (
-                      <tr key={vehicle.id} className="hover:bg-gray-50">
+                      // MODIFIÉ: Ajout de onClick et classes pour le rendre cliquable
+                      <tr 
+                        key={vehicle.id} 
+                        className="hover:bg-gray-50 cursor-pointer"
+                        onClick={() => handleRowClick(vehicle.id)}
+                      >
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div>
                             <div className="text-sm font-medium text-gray-900">
@@ -333,7 +339,11 @@ export default function VehiclesPage() {
                           )}
                         </td>
                         {isChief() && (
-                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                          // MODIFIÉ: Arrête la propagation du clic pour ne pas déclencher le clic de la ligne
+                          <td 
+                            className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium"
+                            onClick={(e) => e.stopPropagation()}
+                          >
                             <div className="flex items-center justify-end space-x-2">
                               <button
                                 onClick={() => handleEdit(vehicle)}
@@ -357,10 +367,8 @@ export default function VehiclesPage() {
                   </tbody>
                 </table>
               </div>
-
-              {/* Pagination améliorée */}
               {data && data.last_page > 1 && (
-                <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+                 <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
                   <div className="flex-1 flex justify-between sm:hidden">
                     <button
                       onClick={() => handlePageChange(currentPage - 1)}
@@ -397,7 +405,6 @@ export default function VehiclesPage() {
                     
                     <div>
                       <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                        {/* Bouton Précédent */}
                         <button
                           onClick={() => handlePageChange(currentPage - 1)}
                           disabled={currentPage === 1}
@@ -408,7 +415,6 @@ export default function VehiclesPage() {
                           <ChevronLeftIcon className="h-5 w-5" aria-hidden="true" />
                         </button>
                         
-                        {/* Numéros de pages */}
                         {getPageNumbers().map((pageNumber, index) => {
                           if (pageNumber === 'ellipsis') {
                             return (
@@ -437,7 +443,6 @@ export default function VehiclesPage() {
                           )
                         })}
                         
-                        {/* Bouton Suivant */}
                         <button
                           onClick={() => handlePageChange(currentPage + 1)}
                           disabled={currentPage === data.last_page}
@@ -457,7 +462,6 @@ export default function VehiclesPage() {
         </div>
       </div>
 
-      {/* Modals */}
       {isModalOpen && (
         <VehicleModal
           vehicle={selectedVehicle}

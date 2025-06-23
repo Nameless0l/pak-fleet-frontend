@@ -1,13 +1,19 @@
 'use client'
 
+import React, { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import { dashboardService } from '@/services/dashboard.service'
+import { vehiclesService } from '@/services/vehicles.service'
+import { maintenanceService } from '@/services/maintenance.service'
 import ForecastCompactWidget from '@/components/dashboard/ForecastCompactWidget';
+import DashboardLayout from '@/components/layout/DashboardLayout'
 import { 
   TruckIcon, 
   WrenchScrewdriverIcon, 
   CurrencyDollarIcon, 
-  ExclamationTriangleIcon 
+  ExclamationTriangleIcon,
+  ClockIcon
 } from '@heroicons/react/24/outline'
 import {
   BarChart,
@@ -23,20 +29,48 @@ import {
   ResponsiveContainer,
 } from 'recharts'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
+import { format } from 'date-fns'
+import { fr } from 'date-fns/locale'
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899']
 
 export default function DashboardPage() {
-  const { data: dashboard, isLoading } = useQuery({
+  const router = useRouter()
+  const [searchVehicleId, setSearchVehicleId] = useState('')
+
+  const { data: dashboard, isLoading: isLoadingDashboard } = useQuery({
     queryKey: ['dashboard'],
     queryFn: () => dashboardService.getDashboard()
   })
 
-  if (isLoading) {
+  const { data: vehiclesData } = useQuery({
+    queryKey: ['vehicles-list-for-dashboard-search'],
+    queryFn: () => vehiclesService.getVehicles({ per_page: 1000 })
+  })
+
+  const { data: historyPreview, isLoading: isLoadingPreview } = useQuery({
+    queryKey: ['maintenance-history-preview', searchVehicleId],
+    queryFn: () => maintenanceService.getOperations({
+      vehicle_id: searchVehicleId,
+      per_page: 3,
+      page: 1
+    }),
+    enabled: !!searchVehicleId,
+  })
+
+  useEffect(() => {
+    if (!searchVehicleId && dashboard?.upcoming_maintenance && dashboard.upcoming_maintenance.length > 0) {
+      setSearchVehicleId(dashboard.upcoming_maintenance[0].id.toString())
+    }
+  }, [dashboard, searchVehicleId])
+
+  if (isLoadingDashboard) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <LoadingSpinner />
-      </div>
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-screen">
+          <LoadingSpinner />
+        </div>
+      </DashboardLayout>
     )
   }
 
@@ -49,24 +83,28 @@ export default function DashboardPage() {
     }).format(value)
   }
 
-  // Fonction pour préparer les données du graphique en secteurs
-  const preparePieData = (data) => {
+  const handleSearchHistory = () => {
+    if (searchVehicleId) {
+      router.push(`/maintenance?tab=history&vehicleId=${searchVehicleId}`)
+    }
+  }
+
+  const preparePieData = (data: any) => {
     if (!data || !Array.isArray(data)) return []
     
     return data
-      .filter(item => parseFloat(item.total_cost) > 0) // Filtrer les valeurs nulles ou zéro
+      .filter(item => parseFloat(item.total_cost) > 0)
       .map(item => ({
         ...item,
-        name: item.category || 'Catégorie inconnue', // Assurer qu'il y a un nom
-        value: parseFloat(item.total_cost)// Recharts utilise 'value' par défaut
+        name: item.category || 'Catégorie inconnue',
+        value: parseFloat(item.total_cost)
       }))
   }
 
   const pieData = preparePieData(dashboard?.costs_by_category)
 
-  // Fonction de rendu personnalisée pour les labels
-  const renderLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, name }) => {
-    if (percent < 0.05) return null // Ne pas afficher les labels pour les petites portions (<5%)
+  const renderLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, name }: any) => {
+    if (percent < 0.05) return null
     
     const RADIAN = Math.PI / 180
     const radius = innerRadius + (outerRadius - innerRadius) * 0.5
@@ -89,6 +127,7 @@ export default function DashboardPage() {
   }
 
   return (
+    <DashboardLayout>
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold text-gray-900">Tableau de bord</h1>
@@ -97,7 +136,6 @@ export default function DashboardPage() {
         </p>
       </div>
 
-      {/* Stats cards */}
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
         <div className="bg-white overflow-hidden shadow rounded-lg">
           <div className="p-5">
@@ -130,7 +168,6 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
-
         <div className="bg-white overflow-hidden shadow rounded-lg">
           <div className="p-5">
             <div className="flex items-center">
@@ -157,7 +194,6 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
-
         <div className="bg-white overflow-hidden shadow rounded-lg">
           <div className="p-5">
             <div className="flex items-center">
@@ -184,7 +220,6 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
-
         <div className="bg-white overflow-hidden shadow rounded-lg">
           <div className="p-5">
             <div className="flex items-center">
@@ -212,15 +247,12 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
-    <div className="">
-        {/* Graphique de tendance */}
-        <div className="lg:col-span-2">
-          <ForecastCompactWidget />
-        </div>
+      
+      <div className="">
+        <ForecastCompactWidget />
       </div>
-      {/* Charts */}
+
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* Monthly costs chart */}
         <div className="bg-white p-6 rounded-lg shadow">
           <h3 className="text-lg font-medium text-gray-900 mb-4">
             Évolution mensuelle des coûts
@@ -238,13 +270,10 @@ export default function DashboardPage() {
             </BarChart>
           </ResponsiveContainer>
         </div>
-
-        {/* Costs by category - Version améliorée */}
         <div className="bg-white p-6 rounded-lg shadow">
           <h3 className="text-lg font-medium text-gray-900 mb-4">
             Répartition par catégorie
           </h3>
-          
           {pieData.length === 0 ? (
             <div className="flex items-center justify-center h-[300px] text-gray-500">
               <div className="text-center">
@@ -253,8 +282,7 @@ export default function DashboardPage() {
               </div>
             </div>
           ) : (
-            <div>
-              <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height={300}>
                 <PieChart>
                   <Pie
                     data={pieData}
@@ -269,80 +297,119 @@ export default function DashboardPage() {
                     strokeWidth={2}
                   >
                     {pieData.map((entry, index) => (
-                      <Cell 
-                        key={`cell-${index}`} 
-                        fill={COLORS[index % COLORS.length]} 
-                      />
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip 
-                    formatter={(value: any) => formatCurrency(value)}
-                    labelFormatter={(label) => `Catégorie: ${label}`}
-                  />
-                  <Legend 
-                    verticalAlign="bottom" 
-                    height={36}
-                    formatter={(value, entry) => (
-                      <span style={{ color: entry.color }}>
-                        {value}
-                      </span>
-                    )}
-                  />
+                  <Tooltip formatter={(value: any) => formatCurrency(value)} />
+                  <Legend verticalAlign="bottom" height={36} />
                 </PieChart>
-              </ResponsiveContainer>
-            </div>
+            </ResponsiveContainer>
           )}
         </div>
       </div>
+      
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div className="bg-white p-6 rounded-lg shadow flex flex-col">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">
+              Historique d'un véhicule
+            </h3>
+            <div className="space-y-4">
+              <select
+                value={searchVehicleId}
+                onChange={(e) => setSearchVehicleId(e.target.value)}
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-gray-500"
+              >
+                <option value="">-- Sélectionnez un véhicule --</option>
+                {vehiclesData?.data.map((v: any) => (
+                  <option key={v.id} value={v.id}>
+                    {v.registration_number} ({v.brand} {v.model})
+                  </option>
+                ))}
+              </select>
 
-      {/* Costs by vehicle type - Line chart */}
-      <div className="bg-white p-6 rounded-lg shadow">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">
-          Coûts par type de véhicule
-        </h3>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Type de véhicule
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Nombre d'opérations
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Coût total
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Coût moyen
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {dashboard?.costs_by_vehicle_type?.map((item: any, index: number) => (
-                <tr key={index}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {item.vehicle_type}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {item.operations_count}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {formatCurrency(item.total_cost)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {formatCurrency(item.total_cost / item.operations_count)}
-                  </td>
+              <div className="mt-4 flex-grow min-h-[150px]">
+                {isLoadingPreview && (
+                  <div className="flex items-center justify-center h-full">
+                    <LoadingSpinner />
+                  </div>
+                )}
+                
+                {!isLoadingPreview && historyPreview?.data && historyPreview.data.length > 0 && (
+                  <div className="space-y-3">
+                    <h4 className="text-sm font-medium text-gray-600">Dernières interventions :</h4>
+                    <ul className="divide-y divide-gray-200">
+                      {historyPreview.data.map((op: any) => (
+                        <li key={op.id} className="py-3">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <p className="text-sm font-medium text-gray-900">{op.maintenance_type.name}</p>
+                              <p className="text-sm text-gray-500 flex items-center mt-1">
+                                <ClockIcon className="h-4 w-4 mr-1.5 text-gray-400"/>
+                                {format(new Date(op.operation_date), 'd MMM yyyy', { locale: fr })}
+                              </p>
+                            </div>
+                            <p className="text-sm font-semibold text-gray-800">
+                              {formatCurrency(op.total_cost)}
+                            </p>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                
+                {!isLoadingPreview && searchVehicleId && (!historyPreview?.data || historyPreview.data.length === 0) && (
+                  <div className="flex items-center justify-center h-full text-center text-gray-500">
+                    <div>
+                      <p>Aucune intervention récente</p>
+                      <p className="text-xs">pour ce véhicule.</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-auto pt-4">
+              <button
+                onClick={handleSearchHistory}
+                disabled={!searchVehicleId}
+                className="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-gray-400 disabled:cursor-not-allowed"
+              >
+                Voir l'historique complet
+              </button>
+            </div>
+          </div>
+        
+        <div className="bg-white p-6 rounded-lg shadow">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">
+            Coûts par type de véhicule
+          </h3>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Opérations</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Coût total</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Coût moyen</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {dashboard?.costs_by_vehicle_type?.map((item: any, index: number) => (
+                  <tr key={index}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{item.vehicle_type}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.operations_count}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatCurrency(item.total_cost)}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatCurrency(item.total_cost / (item.operations_count || 1))}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
-
-      {/* Alerts */}
+      
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* Upcoming maintenance */}
         <div className="bg-white shadow rounded-lg">
           <div className="px-4 py-5 sm:p-6">
             <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
@@ -353,14 +420,14 @@ export default function DashboardPage() {
             ) : (
               <div className="space-y-3">
                 {dashboard?.upcoming_maintenance?.slice(0, 5).map((vehicle: any) => (
-                  <div key={vehicle.id} className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg">
+                  <div 
+                    key={vehicle.id} 
+                    className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg cursor-pointer hover:bg-yellow-100 transition-colors"
+                    onClick={() => router.push(`/maintenance?tab=planned`)}
+                  >
                     <div>
-                      <p className="text-sm font-medium text-gray-900">
-                        {vehicle.registration_number}
-                      </p>
-                      <p className="text-sm text-gray-500">
-                        {vehicle.brand} {vehicle.model}
-                      </p>
+                      <p className="text-sm font-medium text-gray-900">{vehicle.registration_number}</p>
+                      <p className="text-sm text-gray-500">{vehicle.brand} {vehicle.model}</p>
                     </div>
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
                       Maintenance requise
@@ -368,7 +435,7 @@ export default function DashboardPage() {
                   </div>
                 ))}
                 {dashboard?.upcoming_maintenance?.length > 5 && (
-                  <a href="/maintenance" className="text-sm text-blue-600 hover:text-blue-500">
+                  <a href="/maintenance?tab=planned" className="text-sm text-blue-600 hover:text-blue-500">
                     Voir toutes les maintenances ({dashboard.upcoming_maintenance.length})
                   </a>
                 )}
@@ -376,8 +443,6 @@ export default function DashboardPage() {
             )}
           </div>
         </div>
-
-        {/* Low stock alerts */}
         <div className="bg-white shadow rounded-lg">
           <div className="px-4 py-5 sm:p-6">
             <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
@@ -390,12 +455,8 @@ export default function DashboardPage() {
                 {dashboard?.low_stock_alerts?.slice(0, 5).map((part: any) => (
                   <div key={part.id} className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
                     <div>
-                      <p className="text-sm font-medium text-gray-900">
-                        {part.name}
-                      </p>
-                      <p className="text-sm text-gray-500">
-                        Stock: {part.quantity_in_stock} / Min: {part.minimum_stock}
-                      </p>
+                      <p className="text-sm font-medium text-gray-900">{part.name}</p>
+                      <p className="text-sm text-gray-500">Stock: {part.quantity_in_stock} / Min: {part.minimum_stock}</p>
                     </div>
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
                       Stock faible
@@ -413,5 +474,6 @@ export default function DashboardPage() {
         </div>
       </div>
     </div>
+    </DashboardLayout>
   )
 }
