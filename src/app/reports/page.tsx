@@ -7,12 +7,9 @@ import { reportsService } from '@/services/reports.service'
 import DashboardLayout from '@/components/layout/DashboardLayout'
 import { 
   DocumentArrowDownIcon,
-  CalendarIcon,
   ChartBarIcon,
-  TableCellsIcon,
   TruckIcon,
   WrenchScrewdriverIcon,
-  CubeIcon,
   CurrencyDollarIcon,
   ArrowTrendingUpIcon,
   ArrowTrendingDownIcon
@@ -37,6 +34,7 @@ import {
   Legend,
   ResponsiveContainer
 } from 'recharts'
+import { useRouter } from 'next/navigation' // NOUVEAU: Importer useRouter
 
 
 
@@ -44,6 +42,7 @@ const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'
 
 export default function ReportsPage() {
   const currentYear = new Date().getFullYear()
+  const router = useRouter() 
   const [selectedYear, setSelectedYear] = useState(currentYear)
   const [exportFormat, setExportFormat] = useState<'excel' | 'pdf' | 'csv'>('excel')
   const [reportType, setReportType] = useState<'summary' | 'detailed' | 'costs' | 'vehicles' | 'spare_parts'>('summary')
@@ -54,7 +53,9 @@ export default function ReportsPage() {
     queryKey: ['annual-report', selectedYear],
     queryFn: () => reportsService.getAnnualSummary(selectedYear)
   })
-
+  const handleRowClick = (vehicleId: number) => {
+    router.push(`/maintenance?tab=history&vehicleId=${vehicleId}`)
+  }
   // Calculer les variations par rapport à l'année précédente
   const { data: previousYearReport } = useQuery({
     queryKey: ['annual-report', selectedYear - 1],
@@ -750,18 +751,18 @@ export default function ReportsPage() {
                   </div>
                   
                   <div className="bg-white dark:bg-gray-800 rounded-lg p-4">
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Méthode de calcul</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Prix max</p>
                     <p className="text-lg font-semibold text-gray-900 dark:text-white">
                       {formatCurrency(annualReport.forecast_next_year.highest_vehicle_cost)}
                     </p>
                     <p className="text-xs text-gray-500 dark:text-gray-500">
-                      × {annualReport.forecast_next_year.vehicles_count} véhicules
+                      {annualReport.forecast_next_year.vehicles_count} véhicules
                     </p>
                   </div>
                   
                   {annualReport.forecast_next_year.reference_vehicle && (
-                    <div className="bg-white dark:bg-gray-800 rounded-lg p-4">
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Véhicule de référence</p>
+                    <div className="bg-white dark:bg-gray-800 rounded-lg p-4 cursor-pointer" onClick={() => handleRowClick(annualReport.forecast_next_year.reference_vehicle.id)}>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-1" >Véhicule de référence</p>
                       <p className="text-lg font-semibold text-gray-900 dark:text-white">
                         {annualReport.forecast_next_year.reference_vehicle.registration_number}
                       </p>

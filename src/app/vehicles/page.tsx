@@ -22,12 +22,12 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import toast from 'react-hot-toast'
 import { Vehicle } from '@/types'
 import { useDebounce } from '@/hooks/useDebounce'
-import { useRouter } from 'next/navigation' // NOUVEAU: Importer useRouter
+import { useRouter } from 'next/navigation'
 
 export default function VehiclesPage() {
   const { isChief } = useAuth()
   const queryClient = useQueryClient()
-  const router = useRouter() // NOUVEAU: Initialiser le router
+  const router = useRouter() 
   const [search, setSearch] = useState('')
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null)
   const [vehicleToDelete, setVehicleToDelete] = useState<Vehicle | null>(null)
